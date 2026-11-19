@@ -14,8 +14,8 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  # eon-office-core f5530cf -- bump deliberately.
-  CORE_REV: f5530cfaf0c1145f45c9abe6a1a7cf49abbb1c2c
+  # eon-office-core dde0b84 -- bump deliberately.
+  CORE_REV: dde0b84dfa7ce2c94413cf2dda7c772987b76b6b
 
 jobs:
   windows:
