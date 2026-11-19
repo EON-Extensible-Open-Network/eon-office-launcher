@@ -28,6 +28,9 @@ const SCRIPT: &str = include_str!("../../src/app.js");
 #[derive(Default)]
 struct Shared {
     host: Mutex<Option<Arc<Host>>>,
+    /// An `eon-office://` link the launcher was started with, until the
+    /// interface asks for it.
+    link: Mutex<Option<String>>,
 }
 
 impl Shared {
@@ -59,6 +62,9 @@ fn connect(app: &tauri::AppHandle, shared: &Shared) -> Outcome {
         if let Some(event) = pump.next_event(Duration::from_millis(500)) {
             if event.is_null() {
                 continue;
+            }
+            if pump.observe(&event) {
+                let _ = handle.emit("recent-changed", ());
             }
             let _ = handle.emit("core-event", &event);
             if event["topic"] == "core/shutdown" {
@@ -162,6 +168,26 @@ fn install_market(state: State<'_>, app: String, allow_unsigned: bool) -> Outcom
 }
 
 #[tauri::command(async)]
+fn recent(state: State<'_>) -> Outcome {
+    state.host()?.recent()
+}
+
+#[tauri::command(async)]
+fn open_link(state: State<'_>, link: String) -> Outcome {
+    state.host()?.open_link(&link)
+}
+
+/// The link the launcher was started with, once.
+#[tauri::command(async)]
+fn pending_link(state: State<'_>) -> Option<String> {
+    state
+        .link
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .take()
+}
+
+#[tauri::command(async)]
 fn activity(state: State<'_>) -> Outcome {
     state.host()?.activity()
 }
@@ -187,9 +213,12 @@ fn main_window(app: &tauri::AppHandle) -> tauri::Result<()> {
     builder.build().map(|_| ())
 }
 
-fn window() {
+fn window(link: Option<String>) {
     let app = tauri::Builder::default()
-        .manage(Shared::default())
+        .manage(Shared {
+            link: Mutex::new(link),
+            ..Shared::default()
+        })
         .setup(|app| {
             main_window(app.handle())?;
             Ok(())
@@ -224,6 +253,9 @@ fn window() {
             catalogue,
             market_channel,
             install_market,
+            recent,
+            open_link,
+            pending_link,
         ])
         .build(tauri::generate_context!());
     match app {
@@ -314,6 +346,9 @@ fn main() {
                 std::process::exit(1);
             }
         }
-        _ => window(),
+        // `eon-office-launcher eon-office://org.app/item` -- what the
+        // operating system's link handler will run.
+        Some(link) if link.starts_with("eon-office://") => window(Some(link.to_owned())),
+        _ => window(None),
     }
 }

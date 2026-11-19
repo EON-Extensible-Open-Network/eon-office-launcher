@@ -27,6 +27,7 @@ SPDX-FileCopyrightText: 2026 EON contributors
       <div role="tablist" aria-orientation="vertical" id="tabs" data-i18n-label="nav.label" aria-label="Sections">
         <button role="tab" id="tab-apps" aria-controls="panel-apps" aria-selected="true" data-i18n="nav.apps">Applications</button>
         <button role="tab" id="tab-market" aria-controls="panel-market" aria-selected="false" tabindex="-1" data-i18n="nav.market">Get applications</button>
+        <button role="tab" id="tab-recent" aria-controls="panel-recent" aria-selected="false" tabindex="-1" data-i18n="nav.recent">Recent</button>
         <button role="tab" id="tab-search" aria-controls="panel-search" aria-selected="false" tabindex="-1" data-i18n="nav.search">Search</button>
         <button role="tab" id="tab-notifications" aria-controls="panel-notifications" aria-selected="false" tabindex="-1">
           <span data-i18n="nav.notifications">Notifications</span>
@@ -61,6 +62,13 @@ SPDX-FileCopyrightText: 2026 EON contributors
         </div>
         <p id="market-status" class="muted" role="status" aria-live="polite"></p>
         <ul id="market-list" class="cards"></ul>
+      </section>
+
+      <section id="panel-recent" role="tabpanel" aria-labelledby="tab-recent" hidden>
+        <h1 data-i18n="recent.heading">Recent</h1>
+        <p class="muted" data-i18n="recent.note"></p>
+        <p id="recent-empty" class="muted" hidden data-i18n="recent.empty"></p>
+        <ul id="recent-list" class="results"></ul>
       </section>
 
       <section id="panel-search" role="tabpanel" aria-labelledby="tab-search" hidden>

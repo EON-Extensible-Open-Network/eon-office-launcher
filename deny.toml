@@ -35,6 +35,13 @@ allow = [
     "Unlicense",
     "0BSD",
     "MIT-0",
+    # The Mozilla CA root bundle (webpki-roots), reached through rustls in
+    # ureq, which downloads the marketplace index and artefacts over https.
+    # CDLA-Permissive-2.0 is the Community Data License Agreement: a licence for
+    # *data* -- a list of certificate authorities -- that attaches no conditions
+    # to downstream use. Added deliberately, as in eon-stream-engine: the
+    # alternative is a TLS stack with no trust roots.
+    "CDLA-Permissive-2.0",
 ]
 confidence-threshold = 0.93
 

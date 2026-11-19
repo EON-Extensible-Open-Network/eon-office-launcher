@@ -65,6 +65,9 @@ pub struct Host {
     home: PathBuf,
     /// The core, if this launcher started it.
     started: Mutex<Option<Child>>,
+    /// Recent items from `activity` events, newest first; kept in the core
+    /// as the owner's setting `launcher.recent`, on this device only.
+    recent: Mutex<Vec<Value>>,
 }
 
 impl Host {
@@ -119,12 +122,19 @@ impl Host {
 
     fn ready(client: Client, home: &Path, started: Option<Child>) -> Result<Host, Value> {
         // Everything the shell shows live: installs, starts, crashes,
-        // notifications, preference changes.
-        client.subscribe("core/*").map_err(|e| from_sdk(&e))?;
+        // notifications, preference changes -- and every application's
+        // `activity` events, for recent items. The owner may subscribe to all.
+        client.subscribe("*").map_err(|e| from_sdk(&e))?;
+        let recent = client
+            .call("settings.get", json!({ "key": "launcher.recent" }))
+            .ok()
+            .and_then(|v| v["value"].as_array().cloned())
+            .unwrap_or_default();
         Ok(Host {
             client,
             home: home.to_owned(),
             started: Mutex::new(started),
+            recent: Mutex::new(recent),
         })
     }
 
@@ -151,6 +161,70 @@ impl Host {
             } => Some(json!({ "topic": topic, "from": from, "payload": payload })),
             Incoming::Shutdown => Some(json!({ "topic": "core/shutdown" })),
             _ => Some(Value::Null),
+        }
+    }
+
+    /// Fold a live event into what the launcher keeps. True when it changed
+    /// the recent items.
+    pub fn observe(&self, event: &Value) -> bool {
+        let mut recent = self.recent.lock().unwrap_or_else(PoisonError::into_inner);
+        if !crate::links::record(&mut recent, event) {
+            return false;
+        }
+        let _ = self.client.call(
+            "settings.set",
+            json!({ "key": "launcher.recent", "value": *recent }),
+        );
+        true
+    }
+
+    pub fn recent(&self) -> Outcome {
+        let recent = self.recent.lock().unwrap_or_else(PoisonError::into_inner);
+        Ok(json!({ "items": *recent }))
+    }
+
+    /// Follow an `eon-office://` link: the application must be installed; if
+    /// it is launchable and not running it is started; then its `open` method
+    /// is asked for the item.
+    pub fn open_link(&self, link: &str) -> Outcome {
+        let parsed = crate::links::parse(link).ok_or_else(|| {
+            fail(
+                "invalid_link",
+                "not an eon-office:// link this launcher understands",
+            )
+        })?;
+        let apps = self.apps()?;
+        let Some(app) = apps["apps"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .find(|a| a["id"] == parsed.app.as_str())
+            .cloned()
+        else {
+            return Ok(json!({ "opened": false, "reason": "not_installed", "app": parsed.app }));
+        };
+        if app["connected"] != true && app["launchable"] == true {
+            self.launch(&parsed.app)?;
+            let deadline = Instant::now() + Duration::from_secs(10);
+            while Instant::now() < deadline {
+                let up = self.apps()?["apps"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .any(|a| a["id"] == parsed.app.as_str() && a["connected"] == true);
+                if up {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(100));
+            }
+        }
+        match self.client.call_app(
+            &parsed.app,
+            "open",
+            json!({ "id": parsed.id, "query": parsed.query }),
+        ) {
+            Ok(_) => Ok(json!({ "opened": true, "app": parsed.app })),
+            Err(error) => Ok(json!({ "opened": false, "reason": error.code(), "app": parsed.app })),
         }
     }
 

@@ -138,6 +138,7 @@ for (const tab of tabs()) tab.addEventListener("click", () => selectTab(tab));
 function refresh(tabId) {
   if (tabId === "tab-apps") renderApps();
   if (tabId === "tab-market") renderMarket();
+  if (tabId === "tab-recent") renderRecent();
   if (tabId === "tab-notifications") renderNotifications();
   if (tabId === "tab-activity") renderActivity();
 }
@@ -346,6 +347,55 @@ $("market-previews").addEventListener("change", async (event) => {
   renderMarket();
 });
 
+// ---- recent items and links ------------------------------------------------------
+
+async function openItem(app, id) {
+  const name = appNames[app] || app;
+  try {
+    const outcome = await invoke("open", { app, id });
+    if (!outcome.opened) {
+      announce(outcome.reason === "app_unavailable" ? t("search.unavailable", { name }) : t("search.cannot.open", { name }));
+    }
+  } catch (error) {
+    announce(errorText(error));
+  }
+}
+
+async function renderRecent() {
+  try {
+    const { items } = await invoke("recent");
+    $("recent-empty").hidden = items.length > 0;
+    $("recent-list").replaceChildren(...items.map((item) => el("li", {},
+      el("div", { class: "row" },
+        el("div", {},
+          el("h2", { text: item.title }),
+          el("div", { class: "meta", text: `${appNames[item.app] || item.app} · ${t(`recent.kind.${item.kind}`)} · ${new Date(item.at).toLocaleString(document.documentElement.lang)}` }),
+        ),
+        el("button", { class: "secondary", text: t("search.open"), "aria-label": `${t("search.open")}: ${item.title}`, onclick: () => openItem(item.app, item.id) }),
+      ),
+    )));
+  } catch (error) {
+    announce(errorText(error));
+  }
+}
+
+listen("recent-changed", () => {
+  if (currentTab().id === "tab-recent") renderRecent();
+});
+
+async function followPendingLink() {
+  const link = await invoke("pending_link");
+  if (!link) return;
+  try {
+    const outcome = await invoke("open_link", { link });
+    const name = appNames[outcome.app] || outcome.app;
+    if (outcome.reason === "not_installed") announce(t("link.not_installed", { name }));
+    else if (!outcome.opened) announce(t("link.failed", { name }));
+  } catch (error) {
+    announce(errorText(error));
+  }
+}
+
 // ---- search --------------------------------------------------------------------
 
 let searchTimer = 0;
@@ -487,6 +537,7 @@ async function start() {
     showCore("core.connected", { version: status.core.core_version });
     await renderApps();
     await renderNotifications();
+    await followPendingLink();
   } catch (error) {
     showCore("core.failed", { reason: (error && (error.message || error.code)) || String(error) }, true);
   }

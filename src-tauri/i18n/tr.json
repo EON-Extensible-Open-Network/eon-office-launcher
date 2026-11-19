@@ -3,6 +3,7 @@
   "nav.label": "Bölümler",
   "nav.apps": "Uygulamalar",
   "nav.market": "Uygulama edin",
+  "nav.recent": "Son kullanılanlar",
   "nav.search": "Arama",
   "nav.notifications": "Bildirimler",
   "nav.preferences": "Tercihler",
@@ -92,5 +93,14 @@
   "market.unsigned.confirm": "İmzasız olarak kur",
   "market.installing": "{name} indiriliyor ve denetleniyor…",
   "market.done": "{name} kuruldu. İzinlerini Uygulamalar bölümünden verin.",
-  "market.refused": "Kurulmadı: {reason}"
+  "market.refused": "Kurulmadı: {reason}",
+  "recent.heading": "Son kullanılanlar",
+  "recent.note": "Uygulamalarınızda oluşturduklarınız, açtıklarınız ve düzenledikleriniz, en yenisi önce. Yalnızca bu cihazda tutulur; içerik değil, yalnızca başlıklar.",
+  "recent.empty": "Henüz bir şey yok. Uygulamalar, siz çalıştıkça buraya öğe ekler.",
+  "recent.kind.created": "oluşturuldu",
+  "recent.kind.opened": "açıldı",
+  "recent.kind.edited": "düzenlendi",
+  "recent.kind.shared": "paylaşıldı",
+  "link.not_installed": "Bu bağlantı {name} için; o uygulama kurulu değil.",
+  "link.failed": "{name} bu bağlantıyı açamadı."
 }

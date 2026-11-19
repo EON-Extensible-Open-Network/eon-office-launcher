@@ -15,7 +15,13 @@ SPDX-FileCopyrightText: 2026 EON contributors
   its own "Install unsigned" button), saves it where the core looks for it, and installs its
   manifest with nothing granted. Requirements are installed first.
 - Previews are opt-in; the choice is stored in the core.
-- `tools/ui-check.mjs`: 36 checks, including an install from the live index.
+- **Recent:** items applications report through the well-known `activity` event — what the
+  person created, opened, edited or shared, by title only — newest first, kept in the core
+  on this device, with *Open*.
+- **`eon-office://` links:** `eon-office-launcher eon-office://<app>/<item>` starts the
+  application if needed and asks it to open the item; a link to an application that is not
+  installed says so.
+- `tools/ui-check.mjs`: 37 checks, including an install from the live index and Recent.
 
 ## 0.1.0 — first version
 

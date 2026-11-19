@@ -3,6 +3,7 @@
   "nav.label": "Sections",
   "nav.apps": "Applications",
   "nav.market": "Get applications",
+  "nav.recent": "Recent",
   "nav.search": "Search",
   "nav.notifications": "Notifications",
   "nav.preferences": "Preferences",
@@ -92,5 +93,14 @@
   "market.unsigned.confirm": "Install unsigned",
   "market.installing": "Downloading and checking {name}…",
   "market.done": "{name} is installed. Allow its permissions in Applications.",
-  "market.refused": "Not installed: {reason}"
+  "market.refused": "Not installed: {reason}",
+  "recent.heading": "Recent",
+  "recent.note": "What you created, opened and edited in your applications, newest first. Kept on this device only; titles, never contents.",
+  "recent.empty": "Nothing yet. Applications add items here as you work in them.",
+  "recent.kind.created": "created",
+  "recent.kind.opened": "opened",
+  "recent.kind.edited": "edited",
+  "recent.kind.shared": "shared",
+  "link.not_installed": "This link is for {name}, which is not installed.",
+  "link.failed": "{name} could not open this link."
 }

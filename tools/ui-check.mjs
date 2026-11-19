@@ -78,7 +78,8 @@ function protocol(token, app) {
 // ---- the DevTools connection ------------------------------------------------------
 
 async function devtools() {
-  for (let i = 0; i < 100; i++) {
+  // A fresh CI runner can take well over 20 s to start WebView2 the first time.
+  for (let i = 0; i < 300; i++) {
     try {
       const pages = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
       const page = pages.find((p) => p.type === "page" && p.webSocketDebuggerUrl);
@@ -169,7 +170,8 @@ try {
   writeFileSync(manifestPath, JSON.stringify({
     manifest: 0, id: "org.example.notes", name: "Example Notes", version: "1.0.0",
     api: { min: 0, max: 0 }, description: "Writes notes, shares them with search.",
-    capabilities: ["notifications", "search.index", "storage"], provides: [{ method: "open" }],
+    capabilities: ["notifications", "search.index", "storage", "events.publish"], provides: [{ method: "open" }],
+    publishes: ["activity"],
   }));
   await js(`(() => { const i = document.getElementById('manifest-path'); i.value = ${JSON.stringify(manifestPath)}; document.querySelector('#install-form button[type=submit]').click(); })()`);
   check("review shows what it asks for, in words", await until(`document.getElementById('install-preview').textContent.includes('Send you notifications')`));
@@ -221,6 +223,13 @@ try {
   await sleep(500);
   check("Open asks the owning application, which answered", !(await js(`document.getElementById('announcer').textContent.includes('cannot')`)));
   await shot("04-search");
+
+  // Recent items: the app reports what the person did; the launcher lists it.
+  await owner.call("apps.grant", { app: "org.example.notes", capabilities: ["events.publish"] });
+  await tester.call("events.publish", { event: "activity", payload: { id: "n1", title: "İstanbul toplantısı", kind: "edited" } });
+  await js(`document.getElementById('tab-recent').click()`);
+  check("an app's activity appears under Recent", await until(`document.getElementById('recent-list').textContent.includes('İstanbul toplantısı') && document.getElementById('recent-list').textContent.includes('edited')`));
+  await shot("04b-recent");
 
   // Notifications.
   await js(`document.getElementById('tab-notifications').click()`);

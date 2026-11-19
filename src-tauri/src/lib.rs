@@ -13,6 +13,7 @@
 
 pub mod checks;
 pub mod host;
+pub mod links;
 pub mod market;
 
 /// The interface's strings, compiled in.

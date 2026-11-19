@@ -242,3 +242,87 @@ fn an_application_without_an_entry_installs_under_its_own_name() {
     host.leave();
     let _ = std::fs::remove_dir_all(&home);
 }
+
+#[test]
+#[ignore = "needs EON_OFFICE_CORE_BIN; CI builds eon-office-core and sets it"]
+fn activity_becomes_recent_items_and_links_reach_the_app() {
+    use eon_office_sdk::{Client, Incoming};
+    let home = std::env::temp_dir().join(format!("eon-launcher-links-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&home);
+    std::fs::create_dir_all(&home).unwrap();
+    let host = Host::connect(&home).unwrap();
+
+    let folder = home.join("notes-app");
+    std::fs::create_dir_all(&folder).unwrap();
+    let manifest = json!({
+        "manifest": 0, "id": "org.example.notes", "name": "Notes", "version": "1.0.0",
+        "api": { "min": 0, "max": 0 }, "capabilities": ["events.publish"],
+        "provides": [{ "method": "open" }], "publishes": ["activity"],
+    });
+    std::fs::write(folder.join("manifest.json"), manifest.to_string()).unwrap();
+    host.install(&folder.join("manifest.json").to_string_lossy())
+        .unwrap();
+    host.set_permission("org.example.notes", "events.publish", true)
+        .unwrap();
+
+    // The application itself, connecting as an independent program would.
+    let token =
+        std::fs::read_to_string(home.join("apps").join("org.example.notes").join("token")).unwrap();
+    let endpoint = eon_office_sdk::endpoint(&home).unwrap();
+    let app = Client::connect(&endpoint, Some("org.example.notes"), token.trim()).unwrap();
+    app.publish(
+        "activity",
+        &json!({ "id": "n1", "title": "Shopping list", "kind": "edited" }),
+    )
+    .unwrap();
+
+    let deadline = Instant::now() + Duration::from_secs(5);
+    let mut recorded = false;
+    while Instant::now() < deadline && !recorded {
+        if let Some(event) = host.next_event(Duration::from_millis(200)) {
+            recorded = host.observe(&event);
+        }
+    }
+    assert!(recorded, "the activity event did not become a recent item");
+    assert_eq!(host.recent().unwrap()["items"][0]["title"], "Shopping list");
+
+    // It survives the launcher: a second connection reads it back from the core.
+    let again = Host::connect(&home).unwrap();
+    assert_eq!(again.recent().unwrap()["items"][0]["id"], "n1");
+
+    // A link reaches the app's `open`, with its query.
+    let answering = std::thread::spawn(move || {
+        while let Some(message) = app.next(Some(Duration::from_secs(10))) {
+            if let Incoming::Invoke {
+                id, method, params, ..
+            } = message
+            {
+                assert_eq!(method, "open");
+                app.answer(&id, Ok(json!({ "shown": params }))).unwrap();
+                return params;
+            }
+        }
+        json!(null)
+    });
+    let opened = host
+        .open_link("eon-office://org.example.notes/n1?line%3D4")
+        .unwrap();
+    assert_eq!(opened["opened"], true);
+    assert_eq!(
+        answering.join().unwrap(),
+        json!({ "id": "n1", "query": "line=4" })
+    );
+
+    let missing = host
+        .open_link("eon-office://org.example.nothing/x")
+        .unwrap();
+    assert_eq!(missing["reason"], "not_installed");
+    assert_eq!(
+        host.open_link("https://example.org").unwrap_err()["code"],
+        "invalid_link"
+    );
+
+    drop(again);
+    host.leave();
+    let _ = std::fs::remove_dir_all(&home);
+}
