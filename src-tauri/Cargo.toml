@@ -31,7 +31,7 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 # The protocol client. Pinned to a commit, as eon-stream-app pins its core:
 # a release built from a branch is not reproducible tomorrow.
-eon-office-sdk = { git = "https://github.com/EON-Extensible-Open-Network/eon-office-sdk", rev = "79e828bd0fbfd90cf2392158e6afbd2c25721fb1" }
+eon-office-sdk = { git = "https://github.com/EON-Extensible-Open-Network/eon-office-sdk", rev = "79e828bd0fbfd90cf2392158e6afbd2c25721fb1", version = "0.1.0" }
 # The IPC surface is JSON; already in the tree through tauri and the SDK.
 serde_json = "1"
 

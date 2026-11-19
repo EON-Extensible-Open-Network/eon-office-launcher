@@ -7,6 +7,9 @@
 # the window binary over it.
 [workspace]
 members = ["src-tauri"]
+# CI checks eon-office-core out into ./core to build it beside the launcher;
+# it is its own project, not a member.
+exclude = ["core"]
 resolver = "2"
 
 [workspace.package]

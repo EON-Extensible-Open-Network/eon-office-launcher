@@ -3,6 +3,14 @@
 
 [advisories]
 yanked = "deny"
+# RUSTSEC-2024-0370 -- proc-macro-error is unmaintained. Not a vulnerability: a
+# notice that fixes will stop coming. Checked rather than waved through: it is a
+# procedural macro, so it runs in the compiler at build time and none of it is in
+# the shipped binary; the only path is glib-macros 0.18 -> glib -> gtk 0.18, the
+# GTK 3 bindings Tauri uses on Linux only (cargo tree -i proc-macro-error
+# --target x86_64-unknown-linux-gnu). Windows and macOS builds do not contain it.
+# Remove this when Tauri's Linux stack leaves gtk-rs 0.18.
+ignore = ["RUSTSEC-2024-0370"]
 
 [licenses]
 # Our own crates are copyleft and unpublished; the allow list below governs
@@ -38,3 +46,5 @@ wildcards = "deny"
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+# The SDK is pinned to a commit of our own repository (src-tauri/Cargo.toml).
+allow-git = ["https://github.com/EON-Extensible-Open-Network/eon-office-sdk"]
