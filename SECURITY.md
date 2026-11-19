@@ -25,5 +25,15 @@ What matters here:
 - **Nothing is granted by installing**, and removing an application asks first, because
   it deletes the application's data.
 
+## Known, tracked
+
+- **GHSA-wrw7-89jp-8q8g — unsound `glib::VariantStrIter` (glib < 0.20), Linux builds only.**
+  `glib` 0.18 reaches the launcher solely through Tauri's GTK 3 bindings on Linux
+  (`cargo tree -i glib --target x86_64-unknown-linux-gnu`); Windows and macOS builds do not
+  contain it. Neither the launcher nor Tauri, wry or tao calls `VariantStrIter`
+  (checked in their sources on 19 November 2026). There is no upgrade until Tauri leaves
+  gtk-rs 0.18; the Dependabot alert stays open as the reminder, and the same move removes
+  the `proc-macro-error` exemption in `deny.toml`.
+
 The core's threat model:
 [`eon-office-core/SECURITY.md`](https://github.com/EON-Extensible-Open-Network/eon-office-core/blob/main/SECURITY.md).
