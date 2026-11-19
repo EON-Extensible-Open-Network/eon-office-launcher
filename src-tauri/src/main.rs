@@ -147,6 +147,21 @@ fn set_pref(state: State<'_>, key: String, value: Value) -> Outcome {
 }
 
 #[tauri::command(async)]
+fn catalogue(state: State<'_>) -> Outcome {
+    state.host()?.catalogue()
+}
+
+#[tauri::command(async)]
+fn market_channel(state: State<'_>, channel: String) -> Outcome {
+    state.host()?.set_market_channel(&channel)
+}
+
+#[tauri::command(async)]
+fn install_market(state: State<'_>, app: String, allow_unsigned: bool) -> Outcome {
+    state.host()?.install_from_market(&app, allow_unsigned)
+}
+
+#[tauri::command(async)]
 fn activity(state: State<'_>) -> Outcome {
     state.host()?.activity()
 }
@@ -206,6 +221,9 @@ fn window() {
             prefs,
             set_pref,
             activity,
+            catalogue,
+            market_channel,
+            install_market,
         ])
         .build(tauri::generate_context!());
     match app {

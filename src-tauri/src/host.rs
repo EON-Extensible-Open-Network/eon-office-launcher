@@ -280,6 +280,182 @@ impl Host {
         Ok(json!({ "entries": entries, "verify": verify }))
     }
 
+    // ---- the marketplace ----------------------------------------------------
+
+    /// Where the index is and which channel the person follows. Stored in the
+    /// core as the owner's settings, so they survive the launcher.
+    pub fn market_settings(&self) -> Outcome {
+        let get = |key: &str| {
+            self.client
+                .call("settings.get", json!({ "key": key }))
+                .map(|v| v["value"].clone())
+        };
+        let url = sdk(get("market.url"))?;
+        let channel = sdk(get("market.channel"))?;
+        Ok(json!({
+            "url": url.as_str().unwrap_or(crate::market::DEFAULT_INDEX),
+            "channel": channel.as_str().unwrap_or("stable"),
+            "platform": crate::market::platform(),
+        }))
+    }
+
+    pub fn set_market_channel(&self, channel: &str) -> Outcome {
+        if !matches!(channel, "stable" | "preview") {
+            return Err(fail("invalid_params", "a channel is stable or preview"));
+        }
+        sdk(self.client.call(
+            "settings.set",
+            json!({ "key": "market.channel", "value": channel }),
+        ))
+    }
+
+    fn installed_versions(&self) -> Result<std::collections::BTreeMap<String, String>, Value> {
+        let apps = self.apps()?;
+        Ok(apps["apps"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|a| {
+                Some((
+                    a["id"].as_str()?.to_owned(),
+                    a["version"].as_str()?.to_owned(),
+                ))
+            })
+            .collect())
+    }
+
+    fn target(&self) -> Result<eon_office_market::plan::Target, Value> {
+        let settings = self.market_settings()?;
+        let api = sdk(self.client.call("core.info", json!({})))?["api"]
+            .as_u64()
+            .unwrap_or(0);
+        Ok(eon_office_market::plan::Target {
+            api,
+            platform: crate::market::platform(),
+            channel: settings["channel"].as_str().unwrap_or("stable").to_owned(),
+        })
+    }
+
+    /// The index, as this machine sees it: for each application, the release
+    /// it would install (or why none), and whether it is installed already.
+    pub fn catalogue(&self) -> Outcome {
+        let settings = self.market_settings()?;
+        let index = crate::market::index(settings["url"].as_str().unwrap_or_default())?;
+        let target = self.target()?;
+        let installed = self.installed_versions()?;
+        let mut out = Vec::new();
+        for entry in index["apps"].as_array().into_iter().flatten() {
+            let id = entry["id"].as_str().unwrap_or_default();
+            let have = installed.get(id).cloned();
+            let mut item = json!({
+                "id": id, "name": entry["name"], "summary": entry["summary"],
+                "description": entry["description"], "license": entry["license"],
+                "source": entry["source"], "publisher": entry["publisher"],
+                "official": entry["official"], "installed": have,
+            });
+            match eon_office_market::plan::choose(entry, &target) {
+                Ok((release, artifact)) => {
+                    let version = release["version"].as_str().unwrap_or_default();
+                    let newer = have.as_deref().is_none_or(|h| {
+                        eon_office_market::semver::Version::parse(version)
+                            > eon_office_market::semver::Version::parse(h)
+                    });
+                    item["version"] = json!(version);
+                    item["channel"] = release["channel"].clone();
+                    item["capabilities"] = release["manifest"]["capabilities"].clone();
+                    item["size"] = artifact["size"].clone();
+                    item["signed"] = json!(artifact.get("signature").is_some_and(|s| !s.is_null()));
+                    item["state"] = json!(match (&have, newer) {
+                        (None, _) => "install",
+                        (Some(_), true) => "update",
+                        (Some(_), false) => "installed",
+                    });
+                }
+                Err(reason) => {
+                    item["state"] = json!("unavailable");
+                    item["reason"] = json!(reason);
+                }
+            }
+            out.push(item);
+        }
+        Ok(json!({ "apps": out, "settings": settings }))
+    }
+
+    /// Install (or update) `app` and whatever it requires, from the index.
+    /// An unsigned release needs `allow_unsigned`: the person saw that it is
+    /// unsigned and said yes. A signature that does not verify is refused
+    /// whatever they say.
+    pub fn install_from_market(&self, app: &str, allow_unsigned: bool) -> Outcome {
+        use eon_office_market::signature::{verify, Verdict};
+        let settings = self.market_settings()?;
+        let index = crate::market::index(settings["url"].as_str().unwrap_or_default())?;
+        let apps: Vec<Value> = index["apps"].as_array().cloned().unwrap_or_default();
+        let target = self.target()?;
+        let installed = self.installed_versions()?;
+        let steps = eon_office_market::plan::plan(&apps, app, &installed, &target)
+            .map_err(|reason| fail("unavailable", reason))?;
+        let trust = crate::market::trust(&self.home);
+        // Check every step's signature before downloading anything, so a
+        // refusal half-way does not leave half an install.
+        for step in &steps {
+            let id = step["app"].as_str().unwrap_or_default();
+            if step["signed"] != true && !allow_unsigned {
+                return Err(json!({
+                    "code": "unsigned",
+                    "message": format!("{id} {} is not signed", step["version"].as_str().unwrap_or("?")),
+                    "data": { "app": id },
+                }));
+            }
+        }
+        let mut done = Vec::new();
+        for step in &steps {
+            let id = step["app"].as_str().unwrap_or_default();
+            let version = step["version"].as_str().unwrap_or_default();
+            let size = step["size"].as_u64().unwrap_or(0);
+            let bytes = crate::market::fetch(step["url"].as_str().unwrap_or_default(), size)?;
+            let hash = crate::market::verify_bytes(
+                &bytes,
+                size,
+                step["sha256"].as_str().unwrap_or_default(),
+            )?;
+            let signature = apps
+                .iter()
+                .find(|a| a["id"] == id)
+                .and_then(|a| a["releases"].as_array())
+                .and_then(|r| r.iter().find(|r| r["version"] == version))
+                .and_then(|r| r["artifacts"].as_array())
+                .and_then(|a| a.iter().find(|a| a["platform"] == target.platform.as_str()))
+                .and_then(|a| a.get("signature"))
+                .cloned();
+            match verify(signature.as_ref(), id, version, &hash, &trust) {
+                Verdict::Trusted(_) => {}
+                Verdict::Unsigned if allow_unsigned => {}
+                Verdict::Unsigned => {
+                    return Err(fail("unsigned", format!("{id} {version} is not signed")));
+                }
+                Verdict::Refused(reason) => {
+                    return Err(fail(
+                        "signature_refused",
+                        format!("{id} {version}: {reason}"),
+                    ));
+                }
+            }
+            // An application with no `entry` starts on its own; its file is
+            // named after the last label of its id (marketplace.md, Install).
+            let fallback = id.rsplit('.').next().unwrap_or_default();
+            let command = step["manifest"]["entry"]["command"]
+                .as_str()
+                .unwrap_or(fallback);
+            let folder = crate::market::save(&self.home, id, command, &bytes)?;
+            sdk(self.client.call(
+                "apps.install",
+                json!({ "manifest": step["manifest"], "path": folder }),
+            ))?;
+            done.push(json!({ "app": id, "version": version, "reason": step["reason"] }));
+        }
+        Ok(json!({ "installed": done }))
+    }
+
     /// On exit: if this launcher started the core and no application is
     /// connected to it, stop it, so closing the launcher leaves nothing
     /// running that the person did not start. Otherwise leave it for the

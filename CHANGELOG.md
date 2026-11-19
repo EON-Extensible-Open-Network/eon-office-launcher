@@ -5,6 +5,18 @@ SPDX-FileCopyrightText: 2026 EON contributors
 
 # Changelog
 
+## 0.2.0 — install from the marketplace
+
+- **Get applications:** reads the EON Office index (eon-office-marketplace), shows each
+  application's newest release this machine can run — or why none — with what it asks for,
+  its publisher and licence, and whether it is installed or has an update.
+- Installing downloads the file over https only, compares its size and SHA-256 with the
+  index, checks the signature (madde 34 format; every release today is unsigned and needs
+  its own "Install unsigned" button), saves it where the core looks for it, and installs its
+  manifest with nothing granted. Requirements are installed first.
+- Previews are opt-in; the choice is stored in the core.
+- `tools/ui-check.mjs`: 36 checks, including an install from the live index.
+
 ## 0.1.0 — first version
 
 - Applications: review a manifest before installing, install with nothing granted,

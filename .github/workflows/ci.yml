@@ -51,7 +51,7 @@ jobs:
         if: runner.os == 'Windows'
         with:
           node-version: "22"
-      - name: Drive the real window (30 checks)
+      - name: Drive the real window (36 checks)
         if: runner.os == 'Windows'
         shell: bash
         run: node tools/ui-check.mjs --launcher target/debug/eon-office-launcher.exe --core core/target/debug/eon-office-core.exe --shots shots

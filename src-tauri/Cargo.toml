@@ -34,6 +34,15 @@ tauri = { version = "2", features = [] }
 eon-office-sdk = { git = "https://github.com/EON-Extensible-Open-Network/eon-office-sdk", rev = "79e828bd0fbfd90cf2392158e6afbd2c25721fb1", version = "0.1.0" }
 # The IPC surface is JSON; already in the tree through tauri and the SDK.
 serde_json = "1"
+# The marketplace's own logic -- choosing a compatible release, ordering an
+# install, verifying a signature -- shared rather than rewritten. Pinned.
+eon-office-market = { git = "https://github.com/EON-Extensible-Open-Network/eon-office-marketplace", rev = "f3dfedd278800c2b383b0bd9d5f61b79b3f48e14", version = "0.1.0" }
+# Downloading the index and artefacts, in the host only: the interface still
+# has no network. rustls, no system TLS. Already in the tree through the
+# marketplace crate.
+ureq = "2"
+# Artefact hashes, compared before anything is installed.
+sha2 = "0.10"
 
 [lints.rust]
 unsafe_code = "forbid"

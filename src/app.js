@@ -137,6 +137,7 @@ for (const tab of tabs()) tab.addEventListener("click", () => selectTab(tab));
 
 function refresh(tabId) {
   if (tabId === "tab-apps") renderApps();
+  if (tabId === "tab-market") renderMarket();
   if (tabId === "tab-notifications") renderNotifications();
   if (tabId === "tab-activity") renderActivity();
 }
@@ -268,6 +269,81 @@ $("install-form").addEventListener("submit", (event) => {
   event.preventDefault();
   const path = $("manifest-path").value.trim();
   if (path) showPreview(path);
+});
+
+// ---- the marketplace -----------------------------------------------------------
+
+async function renderMarket(keepStatus = false) {
+  if (!keepStatus) $("market-status").textContent = t("market.loading");
+  try {
+    const { apps, settings } = await invoke("catalogue");
+    $("market-previews").checked = settings.channel === "preview";
+    // Name applications that are not installed yet, for "Use <name>".
+    for (const app of apps) if (!appNames[app.id]) appNames[app.id] = app.name;
+    if (!keepStatus) $("market-status").textContent = apps.length ? "" : t("market.empty");
+    $("market-list").replaceChildren(...apps.map(marketCard));
+  } catch (error) {
+    $("market-status").textContent = errorText(error);
+  }
+}
+
+function marketCard(app) {
+  const publisher = [app.publisher?.name || "", app.publisher?.verified ? `(${t("market.verified")})` : ""].join(" ").trim();
+  const header = el("header", {},
+    el("h2", { text: app.name }),
+    app.version ? el("span", { class: "muted", text: t("market.version", { version: app.version, channel: app.channel }) }) : null,
+    app.official ? el("span", { class: "state running", text: t("market.official") }) : null,
+  );
+  const body = [
+    el("p", { text: app.summary }),
+    el("p", { class: "muted", text: `${t("market.by", { publisher })} · ${app.license}` }),
+  ];
+  const actions = el("div", { class: "actions" });
+  if (app.state === "unavailable") {
+    body.push(el("p", { class: "muted", text: t("market.unavailable", { reason: app.reason }) }));
+  } else {
+    const caps = app.capabilities || [];
+    body.push(caps.length
+      ? el("div", {}, el("p", { text: t("apps.install.asks") }), el("ul", {}, ...caps.map((c) => el("li", { text: capabilityText(c) }))))
+      : el("p", { class: "muted", text: t("apps.install.asks.nothing") }));
+    if (!app.signed && app.state !== "installed") {
+      body.push(el("p", { class: "warning", text: t("market.unsigned") }));
+    }
+    if (app.state === "installed") {
+      actions.append(el("span", { class: "state running", text: t("market.installed") }));
+    } else {
+      const label = app.state === "update" ? t("market.update", { version: app.version }) : t("market.install");
+      actions.append(el("button", {
+        text: app.signed ? label : t("market.unsigned.confirm"),
+        "aria-label": `${label}: ${app.name}`,
+        onclick: () => installFromMarket(app, !app.signed),
+      }));
+    }
+  }
+  return el("li", { class: "card" }, header, ...body, actions);
+}
+
+async function installFromMarket(app, allowUnsigned) {
+  $("market-status").textContent = t("market.installing", { name: app.name });
+  try {
+    await invoke("install_market", { app: app.id, allowUnsigned });
+    announce(t("market.done", { name: app.name }));
+    $("market-status").textContent = t("market.done", { name: app.name });
+  } catch (error) {
+    $("market-status").textContent = t("market.refused", { reason: (error && (error.message || error.code)) || String(error) });
+  }
+  // Keep the outcome on screen while the list refreshes under it.
+  await renderMarket(true);
+  await renderApps();
+}
+
+$("market-previews").addEventListener("change", async (event) => {
+  try {
+    await invoke("market_channel", { channel: event.target.checked ? "preview" : "stable" });
+  } catch (error) {
+    announce(errorText(error));
+  }
+  renderMarket();
 });
 
 // ---- search --------------------------------------------------------------------

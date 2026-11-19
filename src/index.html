@@ -26,6 +26,7 @@ SPDX-FileCopyrightText: 2026 EON contributors
     <nav class="sidebar">
       <div role="tablist" aria-orientation="vertical" id="tabs" data-i18n-label="nav.label" aria-label="Sections">
         <button role="tab" id="tab-apps" aria-controls="panel-apps" aria-selected="true" data-i18n="nav.apps">Applications</button>
+        <button role="tab" id="tab-market" aria-controls="panel-market" aria-selected="false" tabindex="-1" data-i18n="nav.market">Get applications</button>
         <button role="tab" id="tab-search" aria-controls="panel-search" aria-selected="false" tabindex="-1" data-i18n="nav.search">Search</button>
         <button role="tab" id="tab-notifications" aria-controls="panel-notifications" aria-selected="false" tabindex="-1">
           <span data-i18n="nav.notifications">Notifications</span>
@@ -49,6 +50,17 @@ SPDX-FileCopyrightText: 2026 EON contributors
         <div id="install-preview" class="card preview" hidden tabindex="-1"></div>
         <p id="apps-empty" class="muted" hidden data-i18n="apps.empty"></p>
         <ul id="apps" class="cards"></ul>
+      </section>
+
+      <section id="panel-market" role="tabpanel" aria-labelledby="tab-market" hidden>
+        <h1 data-i18n="market.heading">Get applications</h1>
+        <p class="muted" data-i18n="market.note"></p>
+        <div class="field inline">
+          <input id="market-previews" type="checkbox">
+          <label for="market-previews" data-i18n="market.previews">Include previews</label>
+        </div>
+        <p id="market-status" class="muted" role="status" aria-live="polite"></p>
+        <ul id="market-list" class="cards"></ul>
       </section>
 
       <section id="panel-search" role="tabpanel" aria-labelledby="tab-search" hidden>

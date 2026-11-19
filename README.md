@@ -26,6 +26,7 @@ in the [protocol](https://github.com/EON-Extensible-Open-Network/eon-office-spec
 | Section | |
 |---|---|
 | **Applications** | Review a manifest before installing (nothing is installed by reviewing); install without granting anything; allow or take back each permission, worded as `eon-office-spec/docs/capabilities.md` words it; start, stop; remove — with a question first, because removing deletes the application's data. |
+| **Get applications** | The EON Office marketplace index: what each release asks for, who publishes it, its licence, and — today, for every release — that it is **unsigned**, with its own button to install anyway. The file is downloaded and its size and SHA-256 compared with the index before anything is installed; nothing is granted by installing. Previews are opt-in. |
 | **Search** | One box over every application's shared items. Turkish letters fold: `ISTANBUL` finds "İstanbul". *Open* asks the owning application (the well-known `open` method). |
 | **Notifications** | Every application's notifications; announced to screen readers as they arrive; mark as read. |
 | **Preferences** | Language (English, Türkçe, or the system's), theme, reduced motion, high contrast, text size — stored in the core and applied to every application at once, the launcher included. |
@@ -71,9 +72,9 @@ node tools/ui-check.mjs --launcher target/debug/eon-office-launcher.exe --core /
 
 `tools/ui-check.mjs` (Node 22+, no dependencies, Windows) opens the real window of a
 **debug** build with a DevTools port (`EON_WEBVIEW_ARGS`, ignored by release builds),
-plays an application itself, and drives the interface through 30 checks: review, install,
+plays an application itself, and drives the interface through 36 checks: review, install,
 permissions, notifications, keyboard navigation, search, open, preferences, activity,
-start, remove. Keys go to the webview through the DevTools protocol, never to the
+installing from the live marketplace index, start, remove. Keys go to the webview through the DevTools protocol, never to the
 operating system.
 
 Licence `GPL-3.0-or-later` with the [EON Module ABI Exception](LICENSE-EXCEPTION.md).

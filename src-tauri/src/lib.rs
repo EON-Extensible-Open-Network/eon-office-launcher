@@ -13,6 +13,7 @@
 
 pub mod checks;
 pub mod host;
+pub mod market;
 
 /// The interface's strings, compiled in.
 pub const EN: &str = include_str!("../i18n/en.json");

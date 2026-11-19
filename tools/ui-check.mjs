@@ -206,7 +206,7 @@ try {
   // Keyboard: arrows move between sections.
   await js(`document.getElementById('tab-apps').focus()`);
   await key("ArrowDown", "ArrowDown");
-  check("ArrowDown moves to Search", await until(`document.activeElement.id === 'tab-search' && !document.getElementById('panel-search').hidden`));
+  check("ArrowDown moves to the next section", await until(`document.activeElement.id === 'tab-market' && !document.getElementById('panel-market').hidden`));
   await key("End", "End");
   check("End moves to the last section", await until(`document.activeElement.id === 'tab-activity'`));
   await key("Home", "Home");
@@ -244,6 +244,20 @@ try {
   check("the activity record is shown and intact", await until(`document.getElementById('verify-status').textContent.startsWith('The record is intact')`));
   await shot("07-activity");
 
+  // The marketplace: previews off shows why nothing installs; on, an unsigned
+  // install needs its own button and states that it is unsigned.
+  await js(`document.getElementById('tab-market').click()`);
+  check("the index is read and explains a preview-only app", await until(`document.getElementById('market-list').textContent.includes('no stable release')`, 20000));
+  await js(`(() => { const c = document.getElementById('market-previews'); c.checked = true; c.dispatchEvent(new Event('change')); })()`);
+  check("with previews, EON Hello offers an unsigned install and says so", await until(`[...document.querySelectorAll('#market-list > li')].some(li => li.querySelector('h2').textContent === 'EON Hello' && li.textContent.includes('Not signed') && [...li.querySelectorAll('button')].some(b => b.textContent === 'Install unsigned'))`, 20000));
+  check("a permission to use another app names it, installed or not", await js(`document.getElementById('market-list').textContent.includes('Use EON Hello')`));
+  await shot("07b-market");
+  await js(`[...document.querySelectorAll('#market-list > li')].find(li => li.querySelector('h2').textContent === 'EON Hello').querySelector('button').click()`);
+  check("installing from the index downloads, checks and installs", await until(`document.getElementById('market-status').textContent.startsWith('EON Hello is installed')`, 60000), await js(`document.getElementById('market-status').textContent`));
+  const fromMarket = (await owner.call("apps.list")).apps.find((a) => a.id === "org.eon.office.hello");
+  check("an app from the index is installed with nothing granted", !!fromMarket && fromMarket.granted.length === 0, JSON.stringify(fromMarket?.granted));
+  check("its card then says Installed", await until(`[...document.querySelectorAll('#market-list > li')].some(li => li.querySelector('h2').textContent === 'EON Hello' && li.textContent.includes('Installed'))`));
+
   // Every control has a name a screen reader can read.
   const unnamed = await js(`[...document.querySelectorAll('button, input, select')].filter(e => {
     if (e.closest('[hidden]')) return false;
@@ -255,16 +269,17 @@ try {
   // A launchable app: Start, then Stop, from the window.
   await owner.call("apps.install", { manifest: { manifest: 0, id: "org.example.idle", name: "Idle", version: "1.0.0", api: { min: 0, max: 0 }, entry: idle } });
   await js(`document.getElementById('tab-apps').click()`);
-  check("a launchable app offers Start", await until(`[...document.querySelectorAll('#apps button')].some(b => b.textContent === 'Start')`));
-  await js(`[...document.querySelectorAll('#apps > li')].find(li => li.textContent.includes('Idle')).querySelector('.actions button').click()`);
+  const idleCard = `[...document.querySelectorAll('#apps > li')].find(li => li.querySelector('h2').textContent === 'Idle')`;
+  check("a launchable app offers Start", await until(`(${idleCard})?.querySelector('.actions button').textContent === 'Start'`));
+  await js(`${idleCard}.querySelector('.actions button').click()`);
   const started = await (async () => { for (let i = 0; i < 50; i++) { const s = await owner.call("apps.status", { app: "org.example.idle" }); if (s.process?.state === "running") return true; await sleep(100); } return false; })();
   check("Start launches it through the core", started);
   await owner.call("apps.stop", { app: "org.example.idle" });
 
   // Remove asks first, then removes.
-  await js(`[...document.querySelectorAll('#apps > li')].find(li => li.textContent.includes('Example Notes')).querySelector('button.danger').click()`);
+  await js(`[...document.querySelectorAll('#apps > li')].find(li => li.querySelector('h2').textContent === 'Example Notes').querySelector('button.danger').click()`);
   check("Remove asks before removing", await until(`[...document.querySelectorAll('#apps p')].some(p => p.textContent.startsWith('Remove Example Notes?') && p.offsetParent !== null)`));
-  await js(`[...document.querySelectorAll('#apps > li')].find(li => li.textContent.includes('Example Notes')).querySelectorAll('button.danger')[1].click()`);
+  await js(`[...document.querySelectorAll('#apps > li')].find(li => li.querySelector('h2').textContent === 'Example Notes').querySelectorAll('button.danger')[1].click()`);
   check("confirming removes it", await until(`![...document.querySelectorAll('#apps h2')].some(h => h.textContent === 'Example Notes')`));
   await shot("08-removed");
 } catch (error) {

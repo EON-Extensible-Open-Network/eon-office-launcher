@@ -129,3 +129,116 @@ fn the_owner_s_whole_day_through_the_host() {
     );
     let _ = std::fs::remove_dir_all(&home);
 }
+
+#[test]
+#[ignore = "needs EON_OFFICE_CORE_BIN and the network (the live index on GitHub)"]
+fn installing_from_the_marketplace_checks_asks_and_grants_nothing() {
+    assert!(
+        std::env::var_os("EON_OFFICE_CORE_BIN").is_some(),
+        "set EON_OFFICE_CORE_BIN"
+    );
+    let home = std::env::temp_dir().join(format!("eon-launcher-market-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&home);
+    std::fs::create_dir_all(&home).unwrap();
+    let host = Host::connect(&home).unwrap();
+
+    // Stable channel: the reference apps are previews, so nothing installs, and it says why.
+    let stable = host.catalogue().unwrap();
+    let hello = stable["apps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["id"] == "org.eon.office.hello")
+        .unwrap()
+        .clone();
+    assert_eq!(hello["state"], "unavailable");
+    assert!(hello["reason"]
+        .as_str()
+        .unwrap()
+        .contains("no stable release"));
+
+    host.set_market_channel("preview").unwrap();
+    let preview = host.catalogue().unwrap();
+    let hello = preview["apps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["id"] == "org.eon.office.hello")
+        .unwrap()
+        .clone();
+    assert_eq!(
+        (hello["state"].clone(), hello["signed"].clone()),
+        (json!("install"), json!(false))
+    );
+
+    // Unsigned without the person's yes: refused, nothing downloaded or installed.
+    let refused = host
+        .install_from_market("org.eon.office.hello", false)
+        .unwrap_err();
+    assert_eq!(refused["code"], "unsigned");
+    assert_eq!(host.apps().unwrap()["apps"], json!([]));
+
+    // With it: downloaded, checked, saved where the core looks, installed with nothing granted.
+    let done = host
+        .install_from_market("org.eon.office.hello", true)
+        .unwrap();
+    assert_eq!(done["installed"][0]["app"], "org.eon.office.hello");
+    let app = host.apps().unwrap()["apps"][0].clone();
+    assert_eq!(app["granted"], json!([]));
+    let file = home
+        .join("installed")
+        .join("org.eon.office.hello")
+        .join(format!("hello{}", std::env::consts::EXE_SUFFIX));
+    assert!(file.is_file());
+
+    // Granted, it runs: the core launches the downloaded file and it connects.
+    for capability in app["pending"].as_array().unwrap() {
+        host.set_permission("org.eon.office.hello", capability.as_str().unwrap(), true)
+            .unwrap();
+    }
+    host.launch("org.eon.office.hello").unwrap();
+    let mut connected = false;
+    for _ in 0..100 {
+        if host.apps().unwrap()["apps"][0]["connected"] == true {
+            connected = true;
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    assert!(connected, "the installed application did not connect");
+    assert_eq!(
+        host.catalogue().unwrap()["apps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| a["id"] == "org.eon.office.hello")
+            .unwrap()["state"],
+        "installed"
+    );
+
+    host.stop("org.eon.office.hello").unwrap();
+    host.leave();
+    let _ = std::fs::remove_dir_all(&home);
+}
+
+#[test]
+#[ignore = "needs EON_OFFICE_CORE_BIN and the network (the live index on GitHub)"]
+fn an_application_without_an_entry_installs_under_its_own_name() {
+    let home = std::env::temp_dir().join(format!("eon-launcher-market2-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&home);
+    std::fs::create_dir_all(&home).unwrap();
+    let host = Host::connect(&home).unwrap();
+    host.set_market_channel("preview").unwrap();
+    // EON Caller recommends Hello but does not require it: only Caller is installed.
+    let done = host
+        .install_from_market("org.eon.office.caller", true)
+        .unwrap();
+    assert_eq!(done["installed"].as_array().unwrap().len(), 1);
+    let file = home
+        .join("installed")
+        .join("org.eon.office.caller")
+        .join(format!("caller{}", std::env::consts::EXE_SUFFIX));
+    assert!(file.is_file());
+    host.leave();
+    let _ = std::fs::remove_dir_all(&home);
+}
