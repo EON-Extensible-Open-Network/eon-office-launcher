@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 EON contributors
+
+[package]
+name = "eon-office-launcher"
+version.workspace = true
+description = "EON Launcher: install, allow, start and remove EON Office applications; one place for notifications, search and preferences."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+name = "eon_launcher"
+path = "src/lib.rs"
+
+[[bin]]
+name = "eon-office-launcher"
+path = "src/main.rs"
+
+# Every dependency is a supply-chain commitment (madde 37).
+[build-dependencies]
+# Reads tauri.conf.json at compile time and embeds the static interface.
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# The desktop shell, as decided for EON (madde 2): the system webview, so no
+# renderer is shipped. No plugins: no file system, no shell, no HTTP from the
+# interface.
+tauri = { version = "2", features = [] }
+# The protocol client. Pinned to a commit, as eon-stream-app pins its core:
+# a release built from a branch is not reproducible tomorrow.
+eon-office-sdk = { git = "https://github.com/EON-Extensible-Open-Network/eon-office-sdk", rev = "79e828bd0fbfd90cf2392158e6afbd2c25721fb1" }
+# The IPC surface is JSON; already in the tree through tauri and the SDK.
+serde_json = "1"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+# A panic in the host takes the window with it, and nothing is left to say
+# what happened.
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+needless_pass_by_value = "allow"

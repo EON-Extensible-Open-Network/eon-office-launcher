@@ -1,0 +1,124 @@
+<!doctype html>
+<!--
+SPDX-License-Identifier: GPL-3.0-or-later
+SPDX-FileCopyrightText: 2026 EON contributors
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EON Launcher</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <a class="skip" href="#main" data-i18n="nav.label">Sections</a>
+
+  <header class="top">
+    <div class="brand">
+      <img src="icon.png" alt="" width="28" height="28">
+      <span data-i18n="app.title">EON Launcher</span>
+    </div>
+    <p id="core-status" class="core-status" role="status" aria-live="polite">Connecting to EON Office…</p>
+    <button id="retry" class="secondary" hidden data-i18n="core.retry">Try again</button>
+  </header>
+
+  <div class="layout">
+    <nav class="sidebar">
+      <div role="tablist" aria-orientation="vertical" id="tabs" data-i18n-label="nav.label" aria-label="Sections">
+        <button role="tab" id="tab-apps" aria-controls="panel-apps" aria-selected="true" data-i18n="nav.apps">Applications</button>
+        <button role="tab" id="tab-search" aria-controls="panel-search" aria-selected="false" tabindex="-1" data-i18n="nav.search">Search</button>
+        <button role="tab" id="tab-notifications" aria-controls="panel-notifications" aria-selected="false" tabindex="-1">
+          <span data-i18n="nav.notifications">Notifications</span>
+          <span id="unread-badge" class="badge" hidden></span>
+        </button>
+        <button role="tab" id="tab-preferences" aria-controls="panel-preferences" aria-selected="false" tabindex="-1" data-i18n="nav.preferences">Preferences</button>
+        <button role="tab" id="tab-activity" aria-controls="panel-activity" aria-selected="false" tabindex="-1" data-i18n="nav.activity">Activity</button>
+      </div>
+    </nav>
+
+    <main id="main" tabindex="-1">
+      <section id="panel-apps" role="tabpanel" aria-labelledby="tab-apps">
+        <h1 data-i18n="apps.heading">Applications</h1>
+        <form id="install-form" class="install">
+          <label for="manifest-path" data-i18n="apps.install.label">Manifest file</label>
+          <div class="row">
+            <input id="manifest-path" type="text" spellcheck="false" autocomplete="off" data-i18n-placeholder="apps.install.placeholder">
+            <button type="submit" data-i18n="apps.install.preview">Review</button>
+          </div>
+        </form>
+        <div id="install-preview" class="card preview" hidden tabindex="-1"></div>
+        <p id="apps-empty" class="muted" hidden data-i18n="apps.empty"></p>
+        <ul id="apps" class="cards"></ul>
+      </section>
+
+      <section id="panel-search" role="tabpanel" aria-labelledby="tab-search" hidden>
+        <h1 data-i18n="search.heading">Search everything</h1>
+        <form id="search-form" role="search">
+          <label for="search-query" class="sr-only" data-i18n="search.label">Search</label>
+          <input id="search-query" type="search" autocomplete="off" data-i18n-placeholder="search.placeholder">
+        </form>
+        <p id="search-status" class="muted" role="status" aria-live="polite"></p>
+        <ul id="search-results" class="results"></ul>
+      </section>
+
+      <section id="panel-notifications" role="tabpanel" aria-labelledby="tab-notifications" hidden>
+        <h1 data-i18n="notifications.heading">Notifications</h1>
+        <div class="field inline">
+          <input id="unread-only" type="checkbox">
+          <label for="unread-only" data-i18n="notifications.unread.only">Unread only</label>
+        </div>
+        <p id="notifications-empty" class="muted" hidden data-i18n="notifications.empty"></p>
+        <ul id="notification-list" class="results"></ul>
+      </section>
+
+      <section id="panel-preferences" role="tabpanel" aria-labelledby="tab-preferences" hidden>
+        <h1 data-i18n="prefs.heading">Preferences</h1>
+        <p class="muted" data-i18n="prefs.note"></p>
+        <div class="field">
+          <label for="pref-locale" data-i18n="prefs.language">Language</label>
+          <select id="pref-locale">
+            <option value="system" data-i18n="prefs.language.system">Same as the system</option>
+            <option value="en">English</option>
+            <option value="tr">Türkçe</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="pref-theme" data-i18n="prefs.theme">Theme</label>
+          <select id="pref-theme">
+            <option value="system" data-i18n="prefs.theme.system">Same as the system</option>
+            <option value="light" data-i18n="prefs.theme.light">Light</option>
+            <option value="dark" data-i18n="prefs.theme.dark">Dark</option>
+          </select>
+        </div>
+        <div class="field inline">
+          <input id="pref-reduce-motion" type="checkbox">
+          <label for="pref-reduce-motion" data-i18n="prefs.reduce_motion">Reduce motion</label>
+        </div>
+        <div class="field inline">
+          <input id="pref-high-contrast" type="checkbox">
+          <label for="pref-high-contrast" data-i18n="prefs.high_contrast">High contrast</label>
+        </div>
+        <div class="field">
+          <label for="pref-font-scale" data-i18n="prefs.font_scale">Text size</label>
+          <div class="row">
+            <input id="pref-font-scale" type="range" min="0.75" max="2" step="0.25">
+            <output id="font-scale-value" for="pref-font-scale"></output>
+          </div>
+        </div>
+        <p id="prefs-status" class="muted" role="status" aria-live="polite"></p>
+      </section>
+
+      <section id="panel-activity" role="tabpanel" aria-labelledby="tab-activity" hidden>
+        <h1 data-i18n="activity.heading">Activity</h1>
+        <p class="muted" data-i18n="activity.note"></p>
+        <button id="verify" class="secondary" data-i18n="activity.verify">Check the record</button>
+        <p id="verify-status" role="status" aria-live="polite"></p>
+        <ol id="activity-list" class="results"></ol>
+      </section>
+    </main>
+  </div>
+
+  <div id="announcer" class="sr-only" aria-live="assertive"></div>
+  <script src="app.js"></script>
+</body>
+</html>

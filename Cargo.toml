@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 EON contributors
+#
+# EON Launcher: the owner's shell for EON Office. `src/` is the interface --
+# static HTML, CSS and JavaScript, no Node, no bundler, as in eon-stream-app.
+# `src-tauri/` is the host: a library (`host`, testable without a window) and
+# the window binary over it.
+[workspace]
+members = ["src-tauri"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.98"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/EON-Extensible-Open-Network/eon-office-launcher"
+
+[profile.release]
+strip = true
+opt-level = "s"
+lto = true
+codegen-units = 1

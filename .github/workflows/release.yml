@@ -1,0 +1,56 @@
+name: release
+
+# A tag `v*` builds the launcher and the core it was tested with, runs the
+# self-test against the binaries about to be published, writes SHA256SUMS and
+# publishes a prerelease. The core is built from the commit pinned below, so a
+# release is reproducible tomorrow.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  # eon-office-core f5530cf -- bump deliberately.
+  CORE_REV: f5530cfaf0c1145f45c9abe6a1a7cf49abbb1c2c
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: EON-Extensible-Open-Network/eon-office-core
+          ref: ${{ env.CORE_REV }}
+          path: core
+      - run: rustup show
+      - run: cargo build --release --manifest-path core/Cargo.toml
+      - run: cargo build --release
+      - name: Stage
+        shell: bash
+        run: |
+          mkdir dist
+          cp target/release/eon-office-launcher.exe "dist/eon-office-launcher-${GITHUB_REF_NAME}-windows-x86_64.exe"
+          cp core/target/release/eon-office-core.exe "dist/eon-office-core-${GITHUB_REF_NAME}-windows-x86_64.exe"
+      - name: Self-test the binaries about to be published
+        shell: bash
+        run: |
+          mkdir check
+          cp target/release/eon-office-launcher.exe check/
+          cp core/target/release/eon-office-core.exe check/
+          check/eon-office-launcher.exe --selftest report.txt || { cat report.txt; exit 1; }
+          cat report.txt
+      - name: Checksums
+        shell: bash
+        working-directory: dist
+        run: sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+      - name: Publish prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* --prerelease --title "EON Launcher $GITHUB_REF_NAME" --notes-file .github/release-notes.md
