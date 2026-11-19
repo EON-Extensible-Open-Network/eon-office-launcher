@@ -272,7 +272,15 @@ try {
   console.error(`  FAIL  ${error.stack || error}`);
 } finally {
   try { tester?.close(); } catch { /* gone */ }
-  try { await owner?.call("core.shutdown"); } catch { /* gone */ }
+  // Stop the core the launcher started, even when the run failed before the
+  // owner connection existed -- otherwise it outlives the check.
+  try {
+    if (!owner && existsSync(join(home, "runtime", "endpoint.json"))) {
+      owner = protocol(readFileSync(join(home, "runtime", "owner.token"), "utf8").trim());
+      await owner.ready;
+    }
+    await owner?.call("core.shutdown");
+  } catch { /* already gone */ }
   owner?.close();
   cdp?.close();
   window.kill();
